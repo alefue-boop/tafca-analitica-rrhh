@@ -1,0 +1,24 @@
+# Ignorar la carpeta de datos crudos y procesados
+data/
+
+# Ignorar específicamente los archivos CSV y Excel por si los dejas en la carpeta principal
+*.csv
+*.xlsx
+*.xls
+
+# Ignorar archivos temporales y cachés de Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Ignorar entornos virtuales (si llegas a usar uno)
+venv/
+env/
+.venv/
+
+# Ignorar archivos de sistema operativo
+.DS_Store
+Thumbs.db
+
+# Ignorar variables de entorno (claves secretas)
+.env
