@@ -5,17 +5,17 @@ import pandas as pd
 st.set_page_config(page_title="Control de Tratos - Tafca SPA", layout="wide")
 st.title("Consolidador y Dashboard de Tratos en Obra")
 
-st.info("Sube los reportes de asistencia (CSV) descargados de cada unidad de negocio para generar el reporte.")
+st.info("Sube los reportes de asistencia originales en formato Excel (.xls o .xlsx) descargados de cada unidad de negocio.")
 
-# Crear 3 espacios para subir los archivos
+# Crear 3 espacios para subir los archivos, ahora aceptando Excel
 col_arch1, col_arch2, col_arch3 = st.columns(3)
 
 with col_arch1:
-    file_239 = st.file_uploader("1. Archivo UN 239", type=['csv'])
+    file_239 = st.file_uploader("1. Archivo UN 239 (.xls)", type=['xls', 'xlsx'])
 with col_arch2:
-    file_234 = st.file_uploader("2. Archivo UN 234 (AALL Rengo)", type=['csv'])
+    file_234 = st.file_uploader("2. Archivo UN 234 AALL Rengo (.xlsx)", type=['xls', 'xlsx'])
 with col_arch3:
-    file_227 = st.file_uploader("3. Archivo UN 227 (Marimaura)", type=['csv'])
+    file_227 = st.file_uploader("3. Archivo UN 227 Marimaura (.xlsx)", type=['xls', 'xlsx'])
 
 # Solo ejecutar el código si los 3 archivos han sido subidos
 if file_239 and file_234 and file_227:
@@ -25,19 +25,19 @@ if file_239 and file_234 and file_227:
             'Monto_Tratos', 'Monto_DT', 'Bonos', 'Gasto_Total', 'Descripcion'
         ]
 
-        # --- PROCESAMIENTO ---
+        # --- PROCESAMIENTO DIRECTO DESDE EXCEL ---
         # UN 239
-        df_239 = pd.read_csv(file_239, skiprows=2)
+        df_239 = pd.read_excel(file_239, skiprows=2)
         df_239 = df_239.rename(columns={'NOMBRE': 'Nombre', 'CARGO': 'Cargo', 'EQ. A CARGO': 'Centro_Costo', 'Total Horas Trato': 'Monto_Tratos', 'Valor a Pagar': 'Monto_DT', 'BONOS': 'Bonos', 'SUMA  TOTAL': 'Gasto_Total', 'DESCRIPCION DE': 'Descripcion'})
         df_239 = df_239.reindex(columns=columnas_maestras)
 
         # UN 234
-        df_234 = pd.read_csv(file_234, skiprows=3)
+        df_234 = pd.read_excel(file_234, skiprows=3)
         df_234 = df_234.rename(columns={'NOMBRE': 'Nombre', 'CARGO': 'Cargo', 'GRUPO TRABAJO': 'Centro_Costo', 'Sub Total': 'Monto_Tratos', 'Sub Total.1': 'Monto_DT', 'Bonos': 'Bonos', 'TRATOS': 'Gasto_Total', 'LOS BONOS PAGADOS': 'Descripcion'})
         df_234 = df_234.reindex(columns=columnas_maestras)
 
         # UN 227
-        df_227 = pd.read_csv(file_227, skiprows=3)
+        df_227 = pd.read_excel(file_227, skiprows=3)
         df_227 = df_227.rename(columns={'NOMBRE': 'Nombre', 'CARGO': 'Cargo', 'GRUPO TRABAJO': 'Centro_Costo', 'Sub Total': 'Monto_Tratos', 'Sub Total.1': 'Monto_DT', 'Otros': 'Bonos', 'TOTAL': 'Gasto_Total', 'DESCRIPCION DE': 'Descripcion'})
         df_227 = df_227.reindex(columns=columnas_maestras)
 
@@ -53,7 +53,7 @@ if file_239 and file_234 and file_227:
         df_maestro['Descripcion'] = df_maestro['Descripcion'].fillna('Sin descripción')
         df_maestro.insert(0, 'Periodo', '2026-03')
 
-        st.success("¡Datos procesados y unificados correctamente!")
+        st.success("¡Datos procesados y unificados directamente desde Excel!")
         st.divider()
 
         # --- VISUALIZACIÓN DEL DASHBOARD ---
@@ -80,4 +80,4 @@ if file_239 and file_234 and file_227:
             st.dataframe(df_maestro[['Faena', 'RUT', 'Nombre', 'Cargo', 'Gasto_Total']], use_container_width=True)
 
     except Exception as e:
-        st.error(f"Ocurrió un error procesando las columnas. Verifica que los archivos correspondan a cada unidad: {e}")
+        st.error(f"Ocurrió un error procesando las columnas. Verifica que los archivos correspondan a cada unidad y mantengan la misma estructura de cabeceras: {e}")
