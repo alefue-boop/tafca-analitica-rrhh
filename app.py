@@ -1,83 +1,120 @@
 import streamlit as st
 import pandas as pd
 
-# Configuración de la página
 st.set_page_config(page_title="Control de Tratos - Tafca SPA", layout="wide")
-st.title("Consolidador y Dashboard de Tratos en Obra")
+st.title("Consolidador Global de Tratos por Unidad de Negocio")
 
-st.info("Sube los reportes de asistencia originales en formato Excel (.xls o .xlsx) descargados de cada unidad de negocio.")
+st.info("Sube todos los reportes de Excel de las distintas obras al mismo tiempo.")
 
-# Crear 3 espacios para subir los archivos, ahora aceptando Excel
-col_arch1, col_arch2, col_arch3 = st.columns(3)
+# Un solo cargador que acepta MÚLTIPLES archivos
+archivos_subidos = st.file_uploader(
+    "Arrastra aquí los archivos (.xls, .xlsx o .csv)", 
+    type=['xls', 'xlsx', 'csv'], 
+    accept_multiple_files=True
+)
 
-with col_arch1:
-    file_239 = st.file_uploader("1. Archivo UN 239 (.xls)", type=['xls', 'xlsx'])
-with col_arch2:
-    file_234 = st.file_uploader("2. Archivo UN 234 AALL Rengo (.xlsx)", type=['xls', 'xlsx'])
-with col_arch3:
-    file_227 = st.file_uploader("3. Archivo UN 227 Marimaura (.xlsx)", type=['xls', 'xlsx'])
-
-# Solo ejecutar el código si los 3 archivos han sido subidos
-if file_239 and file_234 and file_227:
-    try:
-        columnas_maestras = [
-            'Faena', 'RUT', 'Nombre', 'Cargo', 'Centro_Costo', 
-            'Monto_Tratos', 'Monto_DT', 'Bonos', 'Gasto_Total', 'Descripcion'
-        ]
-
-        # --- PROCESAMIENTO DIRECTO DESDE EXCEL ---
-        # UN 239
-        df_239 = pd.read_excel(file_239, skiprows=2)
-        df_239 = df_239.rename(columns={'NOMBRE': 'Nombre', 'CARGO': 'Cargo', 'EQ. A CARGO': 'Centro_Costo', 'Total Horas Trato': 'Monto_Tratos', 'Valor a Pagar': 'Monto_DT', 'BONOS': 'Bonos', 'SUMA  TOTAL': 'Gasto_Total', 'DESCRIPCION DE': 'Descripcion'})
-        df_239 = df_239.reindex(columns=columnas_maestras)
-
-        # UN 234
-        df_234 = pd.read_excel(file_234, skiprows=3)
-        df_234 = df_234.rename(columns={'NOMBRE': 'Nombre', 'CARGO': 'Cargo', 'GRUPO TRABAJO': 'Centro_Costo', 'Sub Total': 'Monto_Tratos', 'Sub Total.1': 'Monto_DT', 'Bonos': 'Bonos', 'TRATOS': 'Gasto_Total', 'LOS BONOS PAGADOS': 'Descripcion'})
-        df_234 = df_234.reindex(columns=columnas_maestras)
-
-        # UN 227
-        df_227 = pd.read_excel(file_227, skiprows=3)
-        df_227 = df_227.rename(columns={'NOMBRE': 'Nombre', 'CARGO': 'Cargo', 'GRUPO TRABAJO': 'Centro_Costo', 'Sub Total': 'Monto_Tratos', 'Sub Total.1': 'Monto_DT', 'Otros': 'Bonos', 'TOTAL': 'Gasto_Total', 'DESCRIPCION DE': 'Descripcion'})
-        df_227 = df_227.reindex(columns=columnas_maestras)
-
-        # --- UNIFICACIÓN ---
-        df_maestro = pd.concat([df_239, df_234, df_227], ignore_index=True)
-        df_maestro = df_maestro.dropna(subset=['RUT'])
+if archivos_subidos:
+    lista_dfs = []
+    
+    for archivo in archivos_subidos:
+        nombre_ext = archivo.name.upper()
         
-        columnas_montos = ['Monto_Tratos', 'Monto_DT', 'Bonos', 'Gasto_Total']
-        for col in columnas_montos:
-            df_maestro[col] = pd.to_numeric(df_maestro[col], errors='coerce').fillna(0)
-        
-        df_maestro = df_maestro[df_maestro['Gasto_Total'] > 0]
-        df_maestro['Descripcion'] = df_maestro['Descripcion'].fillna('Sin descripción')
-        df_maestro.insert(0, 'Periodo', '2026-03')
-
-        st.success("¡Datos procesados y unificados directamente desde Excel!")
-        st.divider()
-
-        # --- VISUALIZACIÓN DEL DASHBOARD ---
-        gasto_total = df_maestro['Gasto_Total'].sum()
-        total_trabajadores = df_maestro['RUT'].nunique()
-        
-        st.subheader("Resumen General de Gasto")
-        kpi1, kpi2, kpi3 = st.columns(3)
-        kpi1.metric("Gasto Total en Tratos", f"${gasto_total:,.0f}")
-        kpi2.metric("Trabajadores Involucrados", total_trabajadores)
-        kpi3.metric("Promedio por Trabajador", f"${(gasto_total/total_trabajadores):,.0f}")
-        
-        st.divider()
-
-        col_graf, col_datos = st.columns([1, 1.5])
-        
-        with col_graf:
-            st.write("### Gasto por Faena")
-            gasto_faena = df_maestro.groupby('Faena')['Gasto_Total'].sum().reset_index()
-            st.bar_chart(gasto_faena, x='Faena', y='Gasto_Total')
+        try:
+            # 1. Leer las primeras 15 filas para buscar DÓNDE empieza realmente la tabla
+            if '.CSV' in nombre_ext:
+                temp_df = pd.read_csv(archivo, nrows=15, header=None)
+            else:
+                temp_df = pd.read_excel(archivo, nrows=15, header=None)
+                
+            fila_cabecera = 0
+            # Buscamos la fila que contenga la palabra "RUT"
+            for i in range(len(temp_df)):
+                valores_fila = temp_df.iloc[i].astype(str).str.upper().values
+                if 'RUT' in valores_fila:
+                    fila_cabecera = i
+                    break
             
-        with col_datos:
-            st.write("### Base de Datos Consolidada")
-            st.dataframe(df_maestro[['Faena', 'RUT', 'Nombre', 'Cargo', 'Gasto_Total']], use_container_width=True)
+            # 2. Volver a leer el archivo desde la fila exacta que encontramos
+            archivo.seek(0)
+            if '.CSV' in nombre_ext:
+                df = pd.read_csv(archivo, skiprows=fila_cabecera)
+            else:
+                df = pd.read_excel(archivo, skiprows=fila_cabecera)
+                
+            # Limpiar nombres de columnas (quitar espacios extra y pasar a mayúsculas)
+            df.columns = df.columns.astype(str).str.strip().str.upper()
+            
+            # 3. Mapeo Dinámico (Resiste cambios en los nombres de las columnas)
+            df_std = pd.DataFrame()
+            
+            # Forzar la Faena a ser TEXTO para que el gráfico las separe correctamente
+            if 'FAENA' in df.columns:
+                df_std['Faena'] = df['FAENA'].astype(str).str.replace('.0', '', regex=False).str.strip()
+            else:
+                df_std['Faena'] = "Sin Faena"
+                
+            df_std['RUT'] = df['RUT'] if 'RUT' in df.columns else None
+            df_std['Nombre'] = df['NOMBRE'] if 'NOMBRE' in df.columns else "Desconocido"
+            
+            # Monto Tratos
+            if 'TOTAL HORAS TRATO' in df.columns:
+                df_std['Monto_Tratos'] = df['TOTAL HORAS TRATO']
+            elif 'SUB TOTAL' in df.columns: # Toma el primer sub total que encuentre
+                df_std['Monto_Tratos'] = df['SUB TOTAL']
+            else:
+                df_std['Monto_Tratos'] = 0
+                
+            # Gasto Total
+            if 'SUMA  TOTAL' in df.columns:
+                df_std['Gasto_Total'] = df['SUMA  TOTAL']
+            elif 'SUMA TOTAL' in df.columns:
+                df_std['Gasto_Total'] = df['SUMA TOTAL']
+            elif 'TRATOS' in df.columns:
+                df_std['Gasto_Total'] = df['TRATOS']
+            elif 'TOTAL' in df.columns:
+                df_std['Gasto_Total'] = df['TOTAL']
+            else:
+                df_std['Gasto_Total'] = 0
+                
+            lista_dfs.append(df_std)
+            
+        except Exception as e:
+            st.error(f"No se pudo procesar el archivo {archivo.name}. Error: {e}")
 
-    except Exception as e:
-        st.error(f"Ocurrió un error procesando las columnas. Verifica que los archivos correspondan a cada unidad y mantengan la misma estructura de cabeceras: {e}")
+    # --- UNIFICACIÓN DE TODAS LAS OBRAS ---
+    if lista_dfs:
+        df_maestro = pd.concat(lista_dfs, ignore_index=True)
+        
+        # Limpieza final
+        df_maestro = df_maestro.dropna(subset=['RUT'])
+        df_maestro['Monto_Tratos'] = pd.to_numeric(df_maestro['Monto_Tratos'], errors='coerce').fillna(0)
+        df_maestro['Gasto_Total'] = pd.to_numeric(df_maestro['Gasto_Total'], errors='coerce').fillna(0)
+        df_maestro = df_maestro[df_maestro['Gasto_Total'] > 0]
+        
+        st.success("¡Información de TODAS las obras unificada correctamente!")
+        st.divider()
+
+        # --- ANÁLISIS POR UNIDAD DE NEGOCIO ---
+        st.subheader("Análisis de Gasto por Unidad de Negocio (Faena)")
+        
+        # Agrupamos los datos explícitamente por Faena
+        analisis_obras = df_maestro.groupby('Faena').agg(
+            Trabajadores=('RUT', 'count'),
+            Gasto_Total=('Gasto_Total', 'sum')
+        ).reset_index()
+        
+        col_tabla, col_grafico = st.columns([1, 2])
+        
+        with col_tabla:
+            st.write("**Detalle por Obra**")
+            # Mostramos la tabla formateada para comprobar que leyó todas las faenas
+            st.dataframe(
+                analisis_obras.style.format({'Gasto_Total': '${:,.0f}'}),
+                use_container_width=True,
+                hide_index=True
+            )
+            
+        with col_grafico:
+            st.write("**Comparativa de Gasto Total**")
+            # Al ser texto, el gráfico mostrará barras separadas e independientes
+            st.bar_chart(analisis_obras, x='Faena', y='Gasto
