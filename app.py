@@ -102,4 +102,4 @@ if archivos_subidos:
         # Dejar solo a los trabajadores que efectivamente tuvieron un cobro por tratos
         df_maestro = df_maestro[df_maestro['Gasto_Total'] > 0]
         
-        st.success("
+ st.success("¡Información de todas las obras unificada correctamente!")
