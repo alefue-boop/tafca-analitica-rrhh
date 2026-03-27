@@ -117,4 +117,4 @@ if archivos_subidos:
         with col_grafico:
             st.write("**Comparativa de Gasto Total**")
             # Al ser texto, el gráfico mostrará barras separadas e independientes
-            st.bar_chart(analisis_obras, x='Faena', y='Gasto
+        st.bar_chart(analisis_obras, x='Faena', y='Gasto_Total', color="#FF4B4B")
