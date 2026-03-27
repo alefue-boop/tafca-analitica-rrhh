@@ -102,4 +102,41 @@ if archivos_subidos:
         # Dejar solo a los trabajadores que efectivamente tuvieron un cobro por tratos
         df_maestro = df_maestro[df_maestro['Gasto_Total'] > 0]
         
- st.success("¡Información de todas las obras unificada correctamente!")
+        st.success("¡Información de todas las obras unificada correctamente!")
+        
+        # --- PANEL DE RESUMEN ---
+        col_tabla, col_grafico = st.columns([1, 2])
+        
+        with col_tabla:
+            st.subheader("Gasto por Faena")
+            gasto_faena = df_maestro.groupby('Faena').agg(
+                Trabajadores=('RUT', 'count'),
+                Gasto_Total=('Gasto_Total', 'sum')
+            ).reset_index()
+            st.dataframe(gasto_faena.style.format({'Gasto_Total': '${:,.0f}'}), use_container_width=True, hide_index=True)
+            
+        with col_grafico:
+            st.subheader("Comparativa de Gasto")
+            st.bar_chart(gasto_faena, x='Faena', y='Gasto_Total', color="#FF4B4B")
+            
+        st.divider()
+        
+        # --- TABLA DETALLADA POR TRABAJADOR ---
+        st.subheader("Detalle por Trabajadores")
+        st.write("Visualiza el gasto exacto de cada trabajador. Puedes filtrar por unidad de negocio.")
+        
+        obra_filtro = st.selectbox("Filtrar por Unidad de Negocio", ["Todas las Obras"] + list(df_maestro['Faena'].unique()))
+        
+        if obra_filtro != "Todas las Obras":
+            df_mostrar = df_maestro[df_maestro['Faena'] == obra_filtro]
+        else:
+            df_mostrar = df_maestro
+            
+        # Ordenamos de mayor a menor gasto para facilitar el control
+        df_mostrar = df_mostrar.sort_values(by='Gasto_Total', ascending=False)
+        
+        st.dataframe(
+            df_mostrar.style.format({'Gasto_Total': '${:,.0f}'}),
+            use_container_width=True,
+            hide_index=True
+        )
